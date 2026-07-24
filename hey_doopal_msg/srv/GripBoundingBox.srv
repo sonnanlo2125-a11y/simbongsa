@@ -1,0 +1,6 @@
+string target
+---
+float64[3] coordinate  # base_link 기준 [x, y, z], 단위 mm
+float32 bbox_width     # 픽셀 너비
+float32 bbox_height    # 픽셀 높이
+float32 camera_depth_z # 카메라 depth, 기존 파트 호환을 위해 필드 구조는 변경하지 않음

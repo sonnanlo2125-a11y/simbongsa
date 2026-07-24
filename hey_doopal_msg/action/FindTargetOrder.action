@@ -1,0 +1,10 @@
+# Goal
+string target_name
+---
+# Result
+bool found
+float64[3] coordinate  # base_link 기준 [x, y, z], 단위 mm
+string message         # 검출 클래스 또는 상태 메시지
+---
+# Feedback
+string state

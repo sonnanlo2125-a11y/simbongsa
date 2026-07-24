@@ -1,0 +1,5 @@
+string waypoint_id
+---
+bool success # 스캔 자체가 정상 수행됐는지 (물체가 0개 나온 것도 success=True, 카메라 문제 등만 False)
+string message # 상태 메시지 (예: "3개 객체 스캔 및 DB 저장 완료")
+int32 detected_count # 이번 스캔에서 저장된 객체 수
