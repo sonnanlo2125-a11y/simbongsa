@@ -1,0 +1,6 @@
+# Request
+string target 
+string goal
+---
+# Response 
+bool accepted

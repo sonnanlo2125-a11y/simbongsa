@@ -1,0 +1,15 @@
+# 조회 종류
+# object, objects, fixed_point, fixed_points,
+# scan_case, scan_cases, conversations
+string data_type
+
+# 단건 조회의 이름
+# object: 객체 record_name
+# fixed_point: 좌표 이름
+# scan_case: CASE 이름
+# conversations: 선택적으로 조회 개수(예: "100")
+string name
+---
+bool success
+string json_data
+string message

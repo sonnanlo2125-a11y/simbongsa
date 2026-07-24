@@ -1,0 +1,10 @@
+# Goal
+string target_name
+---
+# Result
+bool found
+float64[3] coordinate  # base_link 기준 [x, y, z], 단위 mm
+string message         # 성공 시 "hand detected"
+---
+# Feedback
+string state
