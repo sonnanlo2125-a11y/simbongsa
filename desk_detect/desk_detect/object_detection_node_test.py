@@ -47,6 +47,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
+import cv2
 from ultralytics import YOLO
 
 import rclpy
@@ -518,7 +519,7 @@ class ObjectDetectionNode(Node):
             if r.boxes is None:
                 continue
 
-            for box in r.boxes:
+            for box_idx, box in enumerate(r.boxes):
                 confidence = float(box.conf[0].item())
                 if confidence < float(conf_threshold):
                     continue
@@ -557,6 +558,28 @@ class ObjectDetectionNode(Node):
                 link6_point_mm = np.asarray(coordinate['calibration_point_m'], dtype=np.float64) * 1000.0
                 robot_pose_mm_deg = np.asarray(coordinate['robot_pose_mm_deg'], dtype=np.float64)
 
+                # ★ 신규: 세그멘테이션 마스크로 물체의 회전 각도 계산 (cv2.minAreaRect)
+                # -seg 모델이라 r.masks가 있고, masks.xy[box_idx]가 box_idx번째 박스와
+                # 짝지어진 폴리곤 점들(원본 이미지 픽셀 좌표)임. 로봇을 돌려가며 여러 프레임
+                # 비교할 필요 없이, 이 한 프레임의 마스크만으로 바로 각도가 나옴.
+                
+                grip_angle_deg = 0.0
+                if r.masks is not None and box_idx < len(r.masks.xy):
+                    mask_polygon = r.masks.xy[box_idx]  # (N, 2) numpy array
+                    if mask_polygon is not None and len(mask_polygon) >= 3:
+                        rect = cv2.minAreaRect(mask_polygon.astype(np.float32))
+                        # rect = ((center_x, center_y), (width, height), angle)
+                        # OpenCV 버전에 따라 각도 범위(-90~0 또는 0~90)와 기준축이 달라질 수 있어
+                        # 실제 로봇 좌표계 기준으로 부호/오프셋을 맞춰야 함 (아래 결과 확인 후 조정)
+                        grip_angle_deg = float(rect[2])
+
+                        # 디버그: 회전 방향 확인용 - 방향 확정되면 지워도 됨
+                        # 물체를 손으로 천천히 돌리면서 이 로그 값이 커지는지/작아지는지 확인
+                        self.get_logger().info(
+                            f'[각도 디버그] {label} | rect=(cx={rect[0][0]:.1f}, cy={rect[0][1]:.1f}, '
+                            f'w={rect[1][0]:.1f}, h={rect[1][1]:.1f}) | angle={grip_angle_deg:.1f}deg'
+                        )
+
                 detections.append({
                     'class_name': label,
                     'class_id': class_id,
@@ -570,6 +593,7 @@ class ObjectDetectionNode(Node):
                     'rx': round(float(robot_pose_mm_deg[3]), 2),
                     'ry': round(float(robot_pose_mm_deg[4]), 2),
                     'rz': round(float(robot_pose_mm_deg[5]), 2),
+                    'grip_angle_deg': round(grip_angle_deg, 2),  # ★ 신규: minAreaRect 기반 그립 각도
                     'camera_x_mm': round(float(camera_point_mm[0]), 2),
                     'camera_y_mm': round(float(camera_point_mm[1]), 2),
                     'camera_z_mm': round(float(camera_point_mm[2]), 2),
@@ -668,13 +692,18 @@ class ObjectDetectionNode(Node):
             response.bbox_width = float(best['bbox_width'])
             response.bbox_height = float(best['bbox_height'])
             response.camera_depth_z = float(best['camera_depth_z'])
+            response.grip_angle_deg = float(best['grip_angle_deg'])  # ★ 신규: minAreaRect 기반 각도
             response.is_find = True
-            self.get_logger().info(f'[그립 확인] "{target_label}" 확인됨')
+            self.get_logger().info(
+                f'[그립 확인] "{target_label}" 확인됨, angle={best["grip_angle_deg"]}deg')
         else:
+            # found 필드가 없는 인터페이스라 "전부 0"으로 없음을 표현
+            # (로봇제어와 이 규칙 확인 필요) - grip_retry_attempts번 다 실패한 경우에만 여기 도달
             response.coordinate = [0.0, 0.0, 0.0]
             response.bbox_width = 0.0
             response.bbox_height = 0.0
             response.camera_depth_z = 0.0
+            response.grip_angle_deg = 0.0
             response.is_find = False
             self.get_logger().warn(
                 f'[그립 확인] "{target_label}" {self.grip_retry_attempts}번 재시도했지만 '
@@ -692,8 +721,7 @@ class ObjectDetectionNode(Node):
         return GoalResponse.ACCEPT
 
     @staticmethod
-    def cancel_callback(self, goal_handle):
-        self.get_logger().info('[타겟 찾기] 취소 요청 수신')
+    def cancel_callback(goal_handle):
         return CancelResponse.ACCEPT
 
     def execute_callback(self, goal_handle):
