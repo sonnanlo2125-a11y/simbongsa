@@ -1,0 +1,15 @@
+# Goal
+# 연속 관측할 대상 이름
+string target
+---
+# Result
+# 정상 종료 여부와 상태 메시지
+bool success
+string message
+---
+# Feedback
+# Object Detection이 프레임마다 갱신해서 전달
+bool is_find
+float64 bbox_width
+float64 bbox_height
+float64 camera_depth_z

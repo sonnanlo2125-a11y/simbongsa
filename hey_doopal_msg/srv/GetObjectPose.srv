@@ -1,0 +1,13 @@
+# DB/Redis에 저장된 객체 6D pose 조회
+# pose = [object_x_mm, object_y_mm, object_z_mm, robot_rx_deg, robot_ry_deg, robot_rz_deg]
+
+string object_name
+---
+bool success
+bool has_pose
+float64[6] pose
+string coordinate_unit
+string angle_unit
+string frame_id
+string json_data
+string message

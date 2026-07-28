@@ -1,0 +1,16 @@
+# 고정 웨이포인트 pose1, pose2, pose3, hand_scan 등 조회
+string pose_name
+---
+bool success
+
+# Doosan posx:
+# [x_mm, y_mm, z_mm, rx_deg, ry_deg, rz_deg]
+float64[6] pose
+
+string coordinate_unit
+string angle_unit
+string frame_id
+
+# 원본 DB 레코드 확인용
+string json_data
+string message

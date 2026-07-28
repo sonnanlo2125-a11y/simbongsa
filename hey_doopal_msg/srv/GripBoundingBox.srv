@@ -1,0 +1,8 @@
+string target
+---
+float64[3] coordinate       # 로봇 베이스 좌표계 기준 [x, y, z] -> "이건 로봇이 이동할 때 사용"
+float32 bbox_width          # 픽셀 너비
+float32 bbox_height         # 픽셀 높이
+float32 camera_depth_z      # 카메라 raw depth -> "이건 힘 계산할 때 사용"
+float32 grip_angle_deg      # 추가
+bool is_find                # 대상을 발견했는지

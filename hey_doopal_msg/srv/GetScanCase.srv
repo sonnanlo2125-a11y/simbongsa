@@ -1,0 +1,24 @@
+# CASE_1 등의 스캔 CASE 조회
+string case_name
+---
+bool success
+
+# DB waypoints 배열의 첫 번째 pose
+string pose_name_1
+float64[6] pose_1
+
+# DB waypoints 배열의 두 번째 pose
+string pose_name_2
+float64[6] pose_2
+
+# DB waypoints 배열의 세 번째 pose
+string pose_name_3
+float64[6] pose_3
+
+string coordinate_unit
+string angle_unit
+string frame_id
+
+# 원본 CASE 레코드 확인용
+string json_data
+string message

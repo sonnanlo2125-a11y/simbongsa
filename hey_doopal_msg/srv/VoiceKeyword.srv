@@ -1,4 +1,6 @@
-string target
+# Request
+string target 
 string goal
 ---
-bool keyword_accept
+# Response 
+bool accepted
