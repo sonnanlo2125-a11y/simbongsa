@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>관리자 로그인</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body class="login-page">
+  <form class="login-card" method="post">
+    <p class="eyebrow">ASSISTIVE ROBOT</p>
+    <h1>관리자 로그인</h1>
+    <label>아이디<input name="username" autocomplete="username" required></label>
+    <label>비밀번호<input type="password" name="password" autocomplete="current-password" required></label>
+    {% if error %}<p class="error">{{ error }}</p>{% endif %}
+    <button type="submit">로그인</button>
+  </form>
+</body>
+</html>

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#07101f">
+  <title>두팔이</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body class="user-page" data-state="idle">
+  <main class="voice-interface" aria-live="polite">
+    <a class="admin-entry" href="/admin/login" aria-label="관리자 화면">관리자</a>
+
+    <div class="voice-background" aria-hidden="true">
+      <span class="ambient-orb ambient-orb-one"></span>
+      <span class="ambient-orb ambient-orb-two"></span>
+      <span class="ambient-grid"></span>
+    </div>
+
+    <section class="voice-center">
+      <p class="voice-brand">두팔이</p>
+
+      <div class="wave-shell" id="waveShell" role="img" aria-label="대기 중">
+        <div class="wave-halo wave-halo-one"></div>
+        <div class="wave-halo wave-halo-two"></div>
+        <div class="wave-core">
+          <div class="wave-bars" id="waveBars" aria-hidden="true"></div>
+        </div>
+      </div>
+
+      <div class="voice-copy">
+        <p class="voice-state" id="voiceState">말씀해 주세요</p>
+        <p class="voice-hint" id="voiceHint">두팔이가 기다리고 있어요</p>
+      </div>
+    </section>
+
+    <div class="connection-indicator" id="connectionIndicator">
+      <span></span>
+      <span id="connectionText">연결됨</span>
+    </div>
+  </main>
+
+  <script src="{{ url_for('static', filename='js/user.js') }}"></script>
+</body>
+</html>

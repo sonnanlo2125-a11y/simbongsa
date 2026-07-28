@@ -1,0 +1,27 @@
+services:
+  redis:
+    image: redis:7.4-alpine
+    container_name: assistive-robot-redis
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --appendfsync
+      - everysec
+      - --requirepass
+      - ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    volumes:
+      - assistive_redis_data:/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'redis-cli -a "$${REDIS_PASSWORD}" ping | grep PONG'
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  assistive_redis_data:
