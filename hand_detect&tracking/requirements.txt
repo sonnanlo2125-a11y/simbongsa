@@ -1,0 +1,8 @@
+# Python 3.10 / ROS 2 Humble user-space dependencies
+# ROS packages such as rclpy, cv_bridge, message_filters, tf2_ros,
+# sensor_msgs, std_msgs, std_srvs, dsr_msgs2, and hey_doopal_msg
+# must be installed through apt/colcon, not pip.
+
+numpy>=1.23.5,<2.0
+mediapipe>=0.10.14,<0.11
+opencv-python>=4.8,<5.0
