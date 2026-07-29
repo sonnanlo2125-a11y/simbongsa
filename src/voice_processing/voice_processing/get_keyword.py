@@ -7,6 +7,7 @@ from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
 from std_msgs.msg import String, Bool # [ADD] TTS 연동을 위한 메시지 타입
 
+from std_srvs.srv import Trigger
 from ament_index_python.packages import get_package_share_directory
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
@@ -57,6 +58,7 @@ class GetKeyword(Node):
         self.sub_table_rescan_finish = self.create_subscription(Bool, '/table_rescan_finished', self.table_rescan_finished_cb, qos_profile)
         self.sub_hand_tracking = self.create_subscription(Bool, '/hand_tracking_request', self.hand_tracking_request_cb, qos_profile)
         self.sub_hand_arrived = self.create_subscription(Bool, '/hand_arrived', self.hand_arrived_cb, qos_profile)
+        self.sub_error_status = self.create_subscription(String, '/robot_error_status', self.error_status_cb, qos_profile)
 
         self.llm = ChatOpenAI(
             model="gpt-4o", temperature=0.5, openai_api_key=openai_api_key
@@ -118,7 +120,7 @@ class GetKeyword(Node):
             channels=1,
             record_seconds=5,
             fmt=pyaudio.paInt16,
-            device_index=4,
+            # device_index=3,
             buffer_size=3840,
         )
         self.mic_controller = MicController(config=mic_config)
@@ -141,7 +143,8 @@ class GetKeyword(Node):
         )
 
         # 2. 분석된 키워드(target, goal) 또는 "받았어" 트리거를 로봇 제어 노드로 쏘기 위한 클라이언트
-        self.client = self.create_client(VoiceKeyword, "voice_keyword_service")
+        self.client = self.create_client(VoiceKeyword, "/get_keyword")
+        self.receive_client = self.create_client(Trigger, "/ungrip")
 
         self.get_logger().info("GetKeyword Node initialized with Mode Control.")
         self.last_wakeup_switch_time = 0
@@ -278,6 +281,7 @@ class GetKeyword(Node):
     def table_rescan_finished_cb(self, msg):
         if msg.data:
             self.say("재스캔을 완료했습니다.", sleep_time=2.5)
+            self.current_mode = "BUSY"
 
     def hand_tracking_request_cb(self, msg):
         if msg.data:
@@ -285,12 +289,31 @@ class GetKeyword(Node):
 
     def hand_arrived_cb(self, msg):
         self.get_logger().info(f"★ [디버깅] hand_arrived 토픽 수신됨! 값: {msg.data}")
+
         # [수정] msg.data가 True이고 목적지가 hand 혹은 빈 값일 때만 모드 변경 (BUSY일 때만)
         if msg.data and (self.last_goal == "hand" or self.last_goal == "") and self.current_mode == "BUSY":
             self.get_logger().info("손 도착 완료! CONFIRM 모드 진입.")
             self.current_mode = "CONFIRM"
             self.say("손 위치에 도달했습니다. 받을 준비가 되셨다면, 받았어라고 말씀해주세요.", sleep_time=8.0)
             self.say("BEEP::", sleep_time=0.5)
+
+    def error_status_cb(self, msg):
+        self.get_logger().error(f"★ [에러 수신] 로봇 제어 노드로부터 에러 감지: {msg.data} ★")
+        
+            # 진행 중이던 소리가 있다면 정지시킴
+        self.say("STOP_SOUND", sleep_time=0.1)
+            
+            # 안내 멘트 출력 (비동기로 말하고 기다림)
+        self.say("오류가 발생했습니다. 복귀모드로 전환됩니다.", sleep_time=5.0)
+            
+            # WAKEUP 모드로 강제 전환 및 시동어 오인식 방지를 위한 쿨타임 초기화
+        self.current_mode = "WAKEUP"
+        self.last_wakeup_switch_time = time.time()
+        self.flush_mic_buffer()
+        
+        self.get_logger().info("★ 시스템 WAKEUP 모드로 강제 복귀 완료 ★")
+
+        
 
     def extract_keyword(self, output_message):
         response = self.lang_chain.invoke({"user_input": output_message})
@@ -381,11 +404,31 @@ class GetKeyword(Node):
             # [ADD] UI로 사용자의 음성 인식 결과 전송
             self.publish_chat_to_ui("USER", output_message)
 
+            cancel_keywords = ["아니야", "취소", "됐어", "그만", "괜찮아", "쉿", "조용히", "닥쳐", "셧업"]
+            if any(keyword in output_message for keyword in cancel_keywords):
+                self.get_logger().info("사용자 취소 명령 감지. 대기 모드로 돌아갑니다.")
+                self.say("네, 대기할게요.", sleep_time=2.5)
+                
+                # WAKEUP 모드로 복귀
+                self.current_mode = "WAKEUP"
+                self.last_wakeup_switch_time = time.time()
+                self.flush_mic_buffer()
+                return
+            if "범퍼카" in output_message:
+                self.get_logger().info("🚨 이스터에그 '범퍼카' 감지됨!")
+                # 로봇이 대사를 치고 3초 정도 충분히 기다려줍니다.
+                self.say("장 용 준 처 어 러엄~", sleep_time=3.0)
+                
+                # 대사를 친 후 다시 "헤이 두팔"을 기다리는 모드로 복귀
+                self.current_mode = "WAKEUP"
+                self.last_wakeup_switch_time = time.time()
+                self.flush_mic_buffer()
+                return
             # "나왔어" 스캔 명령어 감지 로직
             if "나왔어" in output_message or "스캔" in output_message or "왔어" in output_message or "나 왔어" in output_message:
                 self.say("알겠습니다. 테이블 스캔을 시작합니다.", sleep_time=3)
                 self.say("SCAN::", sleep_time=0.2)
-                self.send_to_robot("SCAN_START", "table_scan")
+                self.send_to_robot("", "table_scan")
                 self.current_mode = "BUSY" 
                 return
 
@@ -417,9 +460,18 @@ class GetKeyword(Node):
             self.publish_chat_to_ui("USER", output_message)
             
             if "받았어" in output_message or "았어" in output_message or "받" in output_message:
-                self.get_logger().warn("'받았어' 키워드 검출!")
+                self.get_logger().warn("'받았어' 키워드 검출! 그리퍼 열기(ungrip) 요청 전송")
+                
+                # [수정] ROS2 비동기 서비스 호출 방식으로 변경
+                ungrip_request = Trigger.Request()
+                future = self.receive_client.call_async(ungrip_request)
+                
+                # 서비스 응답 확인용 콜백 추가 (선택 사항이지만 디버깅에 매우 좋습니다)
+                future.add_done_callback(
+                    lambda f: self.get_logger().info(f"그리퍼 열기 응답: {f.result().success if f.result() else '실패'}")
+                )
+                
                 self.say("네 알겠습니다.", sleep_time=1.0)
-                self.send_to_robot("ACK_RECEIVED", "hand_done")
                 self.current_mode = "BUSY"
             
             elif output_message.strip() != "":
